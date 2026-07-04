@@ -1,0 +1,7 @@
+__pycache__
+.idea
+log*.txt
+loss.csv
+result*.csv
+out*.csv
+*.pth
