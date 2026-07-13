@@ -8,7 +8,7 @@ from runlstm import parse_data
 
 
 def main():
-    #makeForecast.py params.txt BT_instances_forecast_2.1_short.csv model.pth result.csv 
+    #makeForecast.py params.txt Total_demand_yesterday_xgboost_instances_forecast_17.csv model.pth result.csv
     setup_logging("loggerConfig.json")
     log = logging.getLogger(__name__)
     log.info("Starting LSTM model creation")
