@@ -1,4 +1,5 @@
 import logging
+import math
 
 from torch.optim import Optimizer
 
@@ -19,10 +20,13 @@ class LossSchedulerSGD(LossSchedulerBase):
         return
 
     def step(self, loss: float):
-        first_time = self.current_loss == None
+        first_time = self.current_loss is None
         prev_loss = self.current_loss
         super().step(loss)
         if first_time:
+            return
+        if prev_loss is None or not math.isfinite(loss) or loss == 0.0:
+            log.warning("Skipping LR update due to invalid loss: " + str(loss))
             return
         learning_rate = self.optimizer.param_groups[0]['lr']
         factor = prev_loss / loss

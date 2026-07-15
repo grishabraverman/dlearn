@@ -1,4 +1,5 @@
 import logging
+import math
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +15,10 @@ class LossSchedulerBase:
         if self.current_loss is None:
             self.current_loss = loss
             return
-        loss_change = abs(self.current_loss - loss) / loss * 100.0
+        if not math.isfinite(loss) or loss == 0.0:
+            log.warning("Skipping scheduler step due to invalid loss: " + str(loss))
+            return
+        loss_change = abs(self.current_loss - loss) / abs(loss) * 100.0
         self.stuck_status(loss_change)
         self.current_loss = loss
         return
@@ -27,6 +31,7 @@ class LossSchedulerBase:
             log.info("Stuck event counter " + str(self.stuck_events_counter))
         else:
             self.loss_stuck_flag = False
+            self.stuck_events_counter = 0
 
     def get_reset_flag(self):
         return self.loss_stuck_flag

@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from lstmlib.dataUtils import convert_values_2d, is_valid
-from lstmlib.lossschedulerbase import LossSchedulerBase
+from lstmlib.lossscheduleradam import LossSchedulerAdam
 from lstmlib.lossschedulersgd import LossSchedulerSGD
 from lstmlib.runparams import RunParams
 import numpy as np
@@ -157,6 +157,7 @@ class LstmModelCreator(nn.Module):
             self.last_epoch = epoch
             self.train()
             epoch_loss = 0.0
+            n_samples = 0
             for batch_X, batch_y in self.train_loader:
                 batch_X = batch_X.to(DEVICE)
                 batch_y = batch_y.to(DEVICE)
@@ -164,17 +165,31 @@ class LstmModelCreator(nn.Module):
 
                 output = self.forward(batch_X)
                 self.last_loss = criterion(output, batch_y)
+                if not torch.isfinite(self.last_loss):
+                    log.error("Non-finite loss at epoch " + str(epoch + 1))
+                    return -1.0
                 self.last_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.lstm.parameters(), max_norm=1.0)
+                # Clip every trainable layer before the optimizer updates its state.
+                torch.nn.utils.clip_grad_norm_(
+                    list(self.lstm.parameters()) + list(self.fc_stack.parameters()),
+                    max_norm=1.0,
+                )
                 self.optimizer.step()
-                epoch_loss += self.last_loss.item() / batch_X.size(0)
-                if math.isnan(epoch_loss):
-                    print("None")
-            avg_loss = epoch_loss / len(self.train_loader)
+                epoch_loss += self.last_loss.item() * batch_X.size(0)
+                n_samples += batch_X.size(0)
+            if n_samples == 0:
+                log.error("No training samples were processed")
+                return -1.0
+            avg_loss = epoch_loss / n_samples
             self.save_loss(epoch, avg_loss)
             log.info(f"Epoch [{epoch + 1}/{self.parameters.epochs}], Loss: {avg_loss:.4f}")
             if epoch % self.parameters.epochs_between_validations == 0 and epoch != 0:
                 error, mape = self.validation_step(epoch)
+                if error is None:
+                    return -1.0
+                if not math.isfinite(error):
+                    log.error("Non-finite validation error at epoch " + str(epoch + 1))
+                    return -1.0
                 if error < best_error:
                     best_error = error
                     best_fc_stack = copy.deepcopy(self.fc_stack)
@@ -185,8 +200,6 @@ class LstmModelCreator(nn.Module):
                         self.best_models.popitem()
                     self.best_models[error] = best_model
                     log.info("Saved best model for error " + str(error))
-                if error is None :
-                    return -1.0
                 log.info("Validation error: "  + str(error))
                 log.info("Validation MAPE: " + str(mape * 100) + "%")
                 scheduler.step(error)
@@ -203,7 +216,10 @@ class LstmModelCreator(nn.Module):
 
     def create_scheduler(self):
         if self.parameters.optimizer == 'adam':
-            return LossSchedulerBase(self.parameters.loss_min_change_perc, self.parameters.max_stuck_events)
+            return LossSchedulerAdam(self.optimizer, self.parameters.factor_on_divergence,
+                                     self.parameters.min_learn_rate,
+                                     self.parameters.loss_min_change_perc,
+                                     self.parameters.max_stuck_events)
         elif self.parameters.optimizer == 'grad':
             return LossSchedulerSGD(self.optimizer, self.parameters.factor_on_improvements,
                                      self.parameters.factor_on_divergence,
@@ -215,9 +231,13 @@ class LstmModelCreator(nn.Module):
     def create_optimizer(self):
         all_params = list(self.lstm.parameters()) + list(self.fc_stack.parameters())
         if self.parameters.optimizer == 'adam':
-            self.optimizer = torch.optim.Adam(all_params, self.parameters.learning_rate)
+            self.optimizer = torch.optim.AdamW(
+                all_params, lr=self.parameters.learning_rate, weight_decay=1e-4
+            )
         elif self.parameters.optimizer == 'grad':
             self.optimizer = torch.optim.SGD(all_params, self.parameters.learning_rate, self.parameters.momentum)
+        else:
+            raise ValueError("Unsupported optimizer: " + str(self.parameters.optimizer))
 
     def validation_step(self, epoch: int):
         self.eval()
@@ -232,14 +252,22 @@ class LstmModelCreator(nn.Module):
             log.error("Wrong parameter of validation gap: " + str(self.parameters.validation_gap))
             return None, None
 
+        n_eval = 0
         for i in range(len(val_forecast)):
             for j in range(len(val_forecast[i])):
                 if i < self.parameters.validation_gap:
                     continue
-                error += (val_forecast[i][j] - val_actual[i][j]) * (val_forecast[i][j] - val_actual[i][j])
-                mape += math.fabs(val_forecast[i][j] - val_actual[i][j]) / val_actual[i][j]
-        error = error / len(val_forecast) / self.parameters.predict_len
-        mape = mape / len(val_forecast) / self.parameters.predict_len
+                actual = val_actual[i][j]
+                forecast = val_forecast[i][j]
+                error += (forecast - actual) * (forecast - actual)
+                if actual != 0.0:
+                    mape += math.fabs(forecast - actual) / math.fabs(actual)
+                n_eval += 1
+        if n_eval == 0:
+            log.error("No validation samples after applying validation gap")
+            return None, None
+        error = error / n_eval
+        mape = mape / n_eval
         error = math.sqrt(error)
         return error, mape
 
