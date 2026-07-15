@@ -165,10 +165,11 @@ class LstmModelCreator(nn.Module):
                 output = self.forward(batch_X)
                 self.last_loss = criterion(output, batch_y)
                 self.last_loss.backward()
-                self.optimizer.step()
                 torch.nn.utils.clip_grad_norm_(self.lstm.parameters(), max_norm=1.0)
-                epoch_loss += self.last_loss.item() * batch_X.size(0)
-
+                self.optimizer.step()
+                epoch_loss += self.last_loss.item() / batch_X.size(0)
+                if math.isnan(epoch_loss):
+                    print("None")
             avg_loss = epoch_loss / len(self.train_loader)
             self.save_loss(epoch, avg_loss)
             log.info(f"Epoch [{epoch + 1}/{self.parameters.epochs}], Loss: {avg_loss:.4f}")
