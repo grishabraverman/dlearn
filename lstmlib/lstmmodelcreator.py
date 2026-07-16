@@ -184,7 +184,7 @@ class LstmModelCreator(nn.Module):
             self.save_loss(epoch, avg_loss)
             log.info(f"Epoch [{epoch + 1}/{self.parameters.epochs}], Loss: {avg_loss:.4f}")
             if epoch % self.parameters.epochs_between_validations == 0 and epoch != 0:
-                error, mape = self.validation_step(epoch)
+                error, mape = self.validation_step()
                 if error is None:
                     return -1.0
                 if not math.isfinite(error):
@@ -207,11 +207,12 @@ class LstmModelCreator(nn.Module):
                 if early_exit:
                     log.info("Early exit at epoch " + str(epoch))
                     break
-        error, mape = self.validation_step(20000)
+        error, mape = self.validation_step()
         if error is None:
             return -1.0
         log.info("Finish train with validation error: " + str(error))
         log.info("Finish train with validation MAPE: " + str(mape * 100) + "%")
+        log.info("Finish train with best error: " + str(min(self.best_models)))
         return error
 
     def create_scheduler(self):
@@ -239,7 +240,7 @@ class LstmModelCreator(nn.Module):
         else:
             raise ValueError("Unsupported optimizer: " + str(self.parameters.optimizer))
 
-    def validation_step(self, epoch: int):
+    def validation_step(self):
         self.eval()
         val_output = self.forward(self.x_tensor_valid.to(DEVICE))
         val_actual, val_forecast = self.back_transform_values_arrays(val_output)

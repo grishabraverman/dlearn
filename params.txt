@@ -1,24 +1,24 @@
 resolutionMin 30
-epochs 300
+epochs 20
 epochsBetweenValidations 2
 batchSize 64
 learningRate 0.001
 minLearningRate 1E-5
 lossMinChangePerc 0.5
-maxStuckEvents 10
-optimizer adam
+maxStuckEvents 2
+optimizer grad
 factorOnImprovements 1.0
 factorOnDivergence 0.8
 momentum 0.9
 dropout 0.0
-recursionLen 192
-predictLen 96
+recursionLen 48
+predictLen 12
 validationLen 336
-validationGap 0
-numLSTMLayers 1
-fullConnLayersArch 64 96
-hiddenMemorySize 32
-shuffle 1
+validationGap 6
+numLSTMLayers 2
+fullConnLayersArch
+hiddenMemorySize 3
+shuffle 0
 numBestModels 4
 lossOutFileName loss.csv
 flattenFeatures 0
