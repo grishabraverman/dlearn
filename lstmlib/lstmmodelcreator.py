@@ -249,15 +249,9 @@ class LstmModelCreator(nn.Module):
             return None, None
         error = 0.0
         mape = 0.0
-        if self.parameters.validation_gap >= len(val_forecast):
-            log.error("Wrong parameter of validation gap: " + str(self.parameters.validation_gap))
-            return None, None
-
         n_eval = 0
         for i in range(len(val_forecast)):
             for j in range(len(val_forecast[i])):
-                if i < self.parameters.validation_gap:
-                    continue
                 actual = val_actual[i][j]
                 forecast = val_forecast[i][j]
                 error += (forecast - actual) * (forecast - actual)

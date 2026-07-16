@@ -7,7 +7,7 @@ class RunParams:
                  learning_rate: float, min_learn_rate: float, loss_min_change_perc: float,
                  factor_on_improvements: float, factor_on_divergence: float, momentum: float,
                  recursion_len: int, predict_len: int, num_lstm_layers: int, hidden_state_size: int,
-                 fc_layers_arc: list, dropout: float, validation_len: int, validation_gap: int, shuffle: bool,
+                 fc_layers_arc: list, dropout: float, validation_len: int, prediction_gap: int, shuffle: bool,
                  num_best_models: int, max_stuck_events: int, loss_out_file_name: str, flatten_features: bool):
         self.resolution_min = resolution_min
         self.epochs = epochs
@@ -26,7 +26,7 @@ class RunParams:
         self.hidden_state_size = hidden_state_size
         self.fc_layers_arc = fc_layers_arc
         self.validation_len = validation_len
-        self.validation_gap = validation_gap
+        self.prediction_gap = prediction_gap
         self.shuffle = shuffle
         self.dropout = dropout
         self.num_best_models = num_best_models
@@ -71,8 +71,8 @@ class RunParams:
                 params['predictLen'] = int(tokens[1])
             elif tokens[0] == 'validationLen':
                 params['validationLen'] = int(tokens[1])
-            elif tokens[0] == 'validationGap':
-                params['validationGap'] = int(tokens[1])
+            elif tokens[0] == 'predictionGap':
+                params['predictionGap'] = int(tokens[1])
             elif tokens[0] == 'numLSTMLayers':
                 params['numLSTMLayers'] = int(tokens[1])
             elif tokens[0] == 'hiddenMemorySize':
@@ -117,7 +117,7 @@ class RunParams:
                    fc_layers_arc=params['fullConnLayersArch'],
                    dropout=params['dropout'],
                    validation_len=params['validationLen'],
-                   validation_gap=params['validationGap'],
+                   prediction_gap=params['predictionGap'],
                    shuffle=params['shuffle'],
                    num_best_models=params['numBestModels'],
                    max_stuck_events=params['maxStuckEvents'],
@@ -137,7 +137,7 @@ class RunParams:
             return False
         if self.validation_len != other.validation_len:
             return False
-        if self.validation_gap != other.validation_gap:
+        if self.prediction_gap != other.prediction_gap:
             return False
         if self.flatten_features != other.flatten_features:
             return False

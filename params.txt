@@ -1,5 +1,5 @@
 resolutionMin 30
-epochs 20
+epochs 200
 epochsBetweenValidations 2
 batchSize 64
 learningRate 0.001
@@ -14,7 +14,7 @@ dropout 0.0
 recursionLen 48
 predictLen 12
 validationLen 336
-validationGap 6
+predictionGap 3
 numLSTMLayers 2
 fullConnLayersArch
 hiddenMemorySize 3
