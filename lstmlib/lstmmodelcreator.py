@@ -3,11 +3,14 @@ import logging
 import math
 
 import torch
+from sympy.strategies.core import switch
 from torch.utils.data import DataLoader
 
 from lstmlib.dataUtils import convert_values_2d, is_valid
 from lstmlib.lossscheduleradam import LossSchedulerAdam
 from lstmlib.lossschedulersgd import LossSchedulerSGD
+from lstmlib.predictiongapfillerbase import PredictionGapFillerBase
+from lstmlib.predictiongapfilleruniform import PredictionGapFillerUniform
 from lstmlib.runparams import RunParams
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -47,6 +50,8 @@ class LstmModelCreator(nn.Module):
         t_array = []
         n_features = len(transformed_features[0])
         invalid_chunks =0
+        filler = create_prediction_gap_filler(parameters=self.parameters)
+        len_no_filler = self.parameters.recursion_len - self.parameters.prediction_gap
         for i in range(len(time_stamps) - self.parameters.predict_len - self.parameters.recursion_len):
             a_mat = []
             if flatten_features:
@@ -54,7 +59,7 @@ class LstmModelCreator(nn.Module):
             b_line = []
             last_train_value = None
             times_of_chunk = []
-            for j in range(i, i + self.parameters.recursion_len):
+            for j in range(i, i + len_no_filler):
                 times_of_chunk.append(time_stamps[j])
                 a_line = [transformed_train_values[j]]
                 for k in range(n_features):
@@ -67,19 +72,20 @@ class LstmModelCreator(nn.Module):
                 else:
                     a_mat.append(a_line)
                 last_train_value = transformed_train_values[j]
-            for j in range(i + self.parameters.recursion_len, i + self.parameters.recursion_len + self.parameters.predict_len):
+            for j in range(i + len_no_filler, i + self.parameters.recursion_len + self.parameters.predict_len):
                 times_of_chunk.append(time_stamps[j])
                 if last_train_value is None:
                     log.error("Train value is None")
                     return -1
-                a_line = [last_train_value]
+                a_line = [filler.get(time_stamps[j], [last_train_value])]
                 for k in range(n_features):
                     a_line.append(transformed_features[j][k])
                 if flatten_features:
                     a_mat[0].extend(a_line)
                 else:
                     a_mat.append(a_line)
-                b_line.append(transformed_train_values[j])
+                if j >= i + self.parameters.recursion_len:
+                    b_line.append(transformed_train_values[j])
             if not is_valid(times_of_chunk, self.parameters.resolution_min):
                 invalid_chunks += 1
                 continue
@@ -364,3 +370,9 @@ class LstmModelCreator(nn.Module):
         with open(self.parameters.loss_out_file_name, "a") as f:
             f.write(str(epoch) + "," + str(avg_loss) + "\n")
         return
+
+def create_prediction_gap_filler(parameters: RunParams):
+    match parameters.prediction_gap_filler:
+        case "uniform":
+            return PredictionGapFillerUniform()
+    return None

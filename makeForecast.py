@@ -2,7 +2,7 @@ import logging
 import sys
 
 from lstmlib.loggersetup import setup_logging
-from lstmlib.lstmmodelcreator import LstmModelCreator
+from lstmlib.lstmmodelcreator import LstmModelCreator, create_prediction_gap_filler
 from lstmlib.runparams import RunParams
 from runlstm import parse_data
 
@@ -28,11 +28,14 @@ def main():
     if len(values) != len(features) or len(values) != len(time_stamps) or len(time_stamps) != (params.predict_len + params.recursion_len):
         log.error("Wrong number of values and time stamps")
         return
+    filler = create_prediction_gap_filler(params)
     actual_values = values[-params.predict_len:]
     actual_time_stamps = time_stamps[-params.predict_len:]
-    last_value = values[params.recursion_len - 1]
-    for i in range(params.recursion_len, len(values)):
-        values[i] = last_value
+    known_values_len = params.recursion_len - params.prediction_gap
+    last_value = values[known_values_len - 1]
+    for i in range(known_values_len, len(values)):
+        values[i] = filler.get([last_value])
+        actual_values[i] = filler.get(actual_values[i])
     res = trained_lstm.forecast(values, features)
     if len(res) != params.predict_len:
         log.error("Wrong number of values in prediction")
