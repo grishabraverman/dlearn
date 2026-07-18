@@ -39,7 +39,7 @@ class LstmModelCreator(nn.Module):
         return
 
     def prepare_data(self, time_stamps: list, train_values: list, features: list) -> int:
-        # time_stamps, train_values, features = filter_data(time_stamps, train_values, features, self.parameters.resolution_min)
+        log.info("Starting Data preparation")
         flatten_features = self.parameters.flatten_features
         transformed_features, transformed_train_values = self.scale_data(features, train_values)
         a_array = []

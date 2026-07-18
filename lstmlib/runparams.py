@@ -8,7 +8,7 @@ class RunParams:
                  factor_on_improvements: float, factor_on_divergence: float, momentum: float,
                  recursion_len: int, predict_len: int, num_lstm_layers: int, hidden_state_size: int,
                  fc_layers_arc: list, dropout: float, validation_len: int, prediction_gap: int, shuffle: bool,
-                 num_best_models: int, max_stuck_events: int, loss_out_file_name: str, flatten_features: bool):
+                 num_best_models: int, max_stuck_events: int, loss_out_file_name: str, flatten_features: bool, prediction_gap_filler: str):
         self.resolution_min = resolution_min
         self.epochs = epochs
         self.epochs_between_validations = epochs_between_validations
@@ -33,6 +33,7 @@ class RunParams:
         self.max_stuck_events = max_stuck_events
         self.loss_out_file_name = loss_out_file_name
         self.flatten_features = flatten_features
+        self.prediction_gap_filler = prediction_gap_filler
         return
 
     @classmethod
@@ -99,6 +100,8 @@ class RunParams:
                 params['dropout'] = float(tokens[1])
             elif tokens[0] == 'lossOutFileName':
                 params['lossOutFileName'] = tokens[1]
+            elif tokens[0] == 'predictionGapFiller':
+                params['predictionGapFiller'] = tokens[1]
         return cls(resolution_min=params['resolutionMin'],
                    epochs=params['epochs'],
                    epochs_between_validations=params['epochsBetweenValidations'],
@@ -122,7 +125,8 @@ class RunParams:
                    num_best_models=params['numBestModels'],
                    max_stuck_events=params['maxStuckEvents'],
                    loss_out_file_name=params['lossOutFileName'],
-                   flatten_features=params['flattenFeatures'])
+                   flatten_features=params['flattenFeatures'],
+                   prediction_gap_filler=params['predictionGapFiller'])
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, RunParams):
@@ -140,6 +144,8 @@ class RunParams:
         if self.prediction_gap != other.prediction_gap:
             return False
         if self.flatten_features != other.flatten_features:
+            return False
+        if self.prediction_gap_filler != other.prediction_gap_filler:
             return False
         return True
 
